@@ -11,7 +11,8 @@
         "num_device_per_node": 8
     },
     "predictor": {
-        "name": "aiconfigurator"
+        "name": "aiconfigurator",
+        "database_path": "/workspace/aiconfigurator/src/aiconfigurator/systems"
     },
     "scheduler": {
         "tp_size": 1,
