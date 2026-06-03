@@ -1,4 +1,5 @@
-from typing import Optional
+import types
+from typing import Any, Callable, Optional
 
 import numpy as np
 from aiconfigurator.sdk import models
@@ -29,14 +30,14 @@ from sglang_simulator.utils import get_logger
 
 # Map the common data types to AIConfigurator data types.
 MAP_DTYPE_TO_GEMMQuantMode = {
-    DataType.FP16: GEMMQuantMode.float16,
-    DataType.BF16: GEMMQuantMode.float16,
+    DataType.FP16: GEMMQuantMode.bfloat16,
+    DataType.BF16: GEMMQuantMode.bfloat16,
     DataType.FP8: GEMMQuantMode.fp8_block,
     DataType.INT8: GEMMQuantMode.int8_wo,
     DataType.FP4: GEMMQuantMode.nvfp4,
     DataType.INT4: GEMMQuantMode.int4_wo,
-    DataType.FP16_TENSOR: GEMMQuantMode.float16,
-    DataType.BF16_TENSOR: GEMMQuantMode.float16,
+    DataType.FP16_TENSOR: GEMMQuantMode.bfloat16,
+    DataType.BF16_TENSOR: GEMMQuantMode.bfloat16,
     DataType.FP8_TENSOR: GEMMQuantMode.fp8,
     DataType.INT8_TENSOR: GEMMQuantMode.int8_wo,
     DataType.FP4_TENSOR: GEMMQuantMode.nvfp4,
@@ -44,21 +45,21 @@ MAP_DTYPE_TO_GEMMQuantMode = {
 }
 
 MAP_DTYPE_TO_KVCacheQuantMode = {
-    DataType.FP16: KVCacheQuantMode.float16,
-    DataType.BF16: KVCacheQuantMode.float16,
+    DataType.FP16: KVCacheQuantMode.bfloat16,
+    DataType.BF16: KVCacheQuantMode.bfloat16,
     DataType.FP8: KVCacheQuantMode.fp8,
     DataType.INT8: KVCacheQuantMode.int8,
 }
 
 MAP_DTYPE_TO_FMHAQuantMode = {
-    DataType.FP16: FMHAQuantMode.float16,
-    DataType.BF16: FMHAQuantMode.float16,
+    DataType.FP16: FMHAQuantMode.bfloat16,
+    DataType.BF16: FMHAQuantMode.bfloat16,
     DataType.FP8: FMHAQuantMode.fp8,
 }
 
 MAP_DTYPE_TO_MoEQuantMode = {
-    DataType.FP16: MoEQuantMode.float16,
-    DataType.BF16: MoEQuantMode.float16,
+    DataType.FP16: MoEQuantMode.bfloat16,
+    DataType.BF16: MoEQuantMode.bfloat16,
     DataType.FP8: MoEQuantMode.fp8_block,
     DataType.INT8: MoEQuantMode.fp8,
     DataType.FP4: MoEQuantMode.nvfp4,
@@ -75,6 +76,64 @@ MAP_DTYPE_TO_CommQunatMode = {
 
 logger = get_logger("sgl_simulator")
 
+_INTERPOLATION_PATCH_FLAG = "_sglang_simulator_patched_inner_only"
+
+
+def _patch_nearest_1d_point_helper_for_flexible_queries(database: Any = None) -> None:
+    """Default ``inner_only=False`` so out-of-grid simulator shapes can extrapolate.
+
+    AIConfigurator's ``nearest_1d_point_helper`` defaults ``inner_only=True``, which
+    raises when batch/sequence sizes fall outside collected perf tables. The simulator
+    passes arbitrary ``RuntimeConfig`` values, so we allow boundary extrapolation.
+
+    Current SDK (``aiconfigurator.sdk.interpolation``): patch the module-level helper
+    used by ``operations.*`` and ``interp_*`` paths. Legacy SDK: fall back to
+    ``PerfDatabase._nearest_1d_point_helper`` when present.
+    """
+    def _wrap(fn: Callable) -> Callable:
+        if getattr(fn, _INTERPOLATION_PATCH_FLAG, False):
+            return fn
+
+        def wrapped(x: int, values: list[int], inner_only: bool = False):
+            return fn(x, values, inner_only)
+
+        setattr(wrapped, _INTERPOLATION_PATCH_FLAG, True)
+        return wrapped
+
+    patched_via: str | None = None
+    try:
+        from aiconfigurator.sdk import interpolation
+    except ImportError:
+        interpolation = None
+
+    if interpolation is not None and hasattr(interpolation, "nearest_1d_point_helper"):
+        interpolation.nearest_1d_point_helper = _wrap(
+            interpolation.nearest_1d_point_helper
+        )
+        patched_via = "aiconfigurator.sdk.interpolation"
+
+    if patched_via is None and database is not None and hasattr(
+        database, "_nearest_1d_point_helper"
+    ):
+        orig = database._nearest_1d_point_helper
+        fn = orig.__func__ if isinstance(orig, types.MethodType) else orig
+        wrapped = _wrap(fn)
+        if isinstance(orig, types.MethodType):
+            database._nearest_1d_point_helper = types.MethodType(wrapped, database)
+        else:
+            database._nearest_1d_point_helper = wrapped
+        patched_via = "PerfDatabase._nearest_1d_point_helper"
+
+    if patched_via is None:
+        logger.warning(
+            "Could not patch aiconfigurator nearest_1d_point_helper; "
+            "simulator queries outside perf tables may raise ValueError."
+        )
+    else:
+        logger.debug(
+            "Patched aiconfigurator nearest_1d_point_helper via %s", patched_via
+        )
+
 
 def get_perf_model(
     sched_config: SchedulerConfig,
@@ -88,16 +147,16 @@ def get_perf_model(
         moe_ep_size=sched_config.moe_ep_size,
         attention_dp_size=sched_config.attn_dp_size,
         gemm_quant_mode=MAP_DTYPE_TO_GEMMQuantMode.get(
-            sched_config.data_type, GEMMQuantMode.float16
+            sched_config.data_type, GEMMQuantMode.bfloat16
         ),
         moe_quant_mode=MAP_DTYPE_TO_MoEQuantMode.get(
-            sched_config.data_type, MoEQuantMode.float16
+            sched_config.data_type, MoEQuantMode.bfloat16
         ),
         kvcache_quant_mode=MAP_DTYPE_TO_KVCacheQuantMode.get(
-            sched_config.kv_cache_data_type, KVCacheQuantMode.float16
+            sched_config.kv_cache_data_type, KVCacheQuantMode.bfloat16
         ),
         fmha_quant_mode=MAP_DTYPE_TO_FMHAQuantMode.get(
-            sched_config.kv_cache_data_type, FMHAQuantMode.float16
+            sched_config.kv_cache_data_type, FMHAQuantMode.bfloat16
         ),
         comm_quant_mode=MAP_DTYPE_TO_CommQunatMode.get(
             sched_config.data_type, CommQuantMode.half
@@ -146,20 +205,7 @@ class AIConfiguratorTimePredictor(InferTimePredictor):
             raise ValueError("Failed to initialize the database.")
 
         database.set_default_database_mode(database_mode)
-
-        # --- Replace the original function to support more flexible request input. --- #
-
-        db_nearest_1d_point_helper = database._nearest_1d_point_helper
-
-        def wrapped_nearest_1d_point_helper(
-            x: int, values: list[int], inner_only: bool = False
-        ):
-            # Disable the inner_only by default
-            return db_nearest_1d_point_helper(x, values, inner_only)
-
-        database._nearest_1d_point_helper = wrapped_nearest_1d_point_helper
-
-        # --- End --- #
+        _patch_nearest_1d_point_helper_for_flexible_queries(database)
 
         self._session = InferenceSession(
             model=get_perf_model(config, model, workload_distribution),
@@ -206,8 +252,10 @@ class AIConfiguratorTimePredictor(InferTimePredictor):
                 summary = self._session.run_static(runtime_config, mode="static_gen")
                 latency_dict = summary.get_generation_latency_dict()
             else:
+                # summary = self._session.run_static(runtime_config, mode="static_gen")
+                # latency_dict = summary.get_generation_latency_dict()
                 # faster path
-                _, _, latency_dict, _ = self._session._backend._run_static_breakdown(
+                _, _, latency_dict, _, _, _ = self._session._backend._run_static_breakdown(
                     self._session._model,
                     self._session._database,
                     runtime_config,
@@ -243,8 +291,10 @@ class AIConfiguratorTimePredictor(InferTimePredictor):
                 summary = self._session.run_static(runtime_config, mode="static_ctx")
                 latency_dict = summary.get_context_latency_dict()
             else:
+                # summary = self._session.run_static(runtime_config, mode="static_ctx")
+                # latency_dict = summary.get_context_latency_dict()
                 # faster path
-                latency_dict, _, _, _ = self._session._backend._run_static_breakdown(
+                latency_dict, _, _, _, _, _ = self._session._backend._run_static_breakdown(
                     self._session._model,
                     self._session._database,
                     runtime_config,
