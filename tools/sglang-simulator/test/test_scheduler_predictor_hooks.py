@@ -59,6 +59,9 @@ def hooked_scheduler(monkeypatch):
         def event_loop_normal(self):
             pass
 
+        def on_idle(self):
+            pass
+
         def init_request_dispatcher(self):
             self._request_dispatcher = SimpleNamespace(_mapping={ProfileReq: None})
 
