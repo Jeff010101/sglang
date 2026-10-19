@@ -398,6 +398,13 @@ Supported predictors:
 | `replay` | Exact or nearest-neighbor batch-composition replay. |
 
 Relative predictor paths are resolved from the simulator configuration location.
+
+The InferCast adapter translates prepared decode past-KV lengths `H` to ordered
+visible lengths `H + 1` for the SDK. A zero-length past maps to one visible token.
+The SDK converts visible lengths back to past KV only when querying generation
+components. This requires decode calibration model
+`whole_forward_anchor_plus_mla_contrast_v2`; old `v1` candidates must be rebuilt
+from verified fit evidence and revalidated, not relabeled.
 Environment variables in paths use `${NAME}` syntax.
 
 ## Workload formats

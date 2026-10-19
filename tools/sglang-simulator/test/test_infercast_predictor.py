@@ -92,7 +92,7 @@ def _batch(mode, *requests):
         (_batch("EXTEND", (True, 0)), "invalid_batch"),
         (_batch("EXTEND", (1, 0.5)), "invalid_batch"),
         (_batch("DECODE", (2, 10)), "invalid_batch"),
-        (_batch("DECODE", (1, 0)), "invalid_batch"),
+        (_batch("DECODE", (1, -1)), "invalid_batch"),
         (_batch("TARGET_VERIFY", (1, 10)), "unsupported_forward_mode"),
         (_batch("FUTURE_MODE", (1, 10)), "unsupported_forward_mode"),
     ],
@@ -298,7 +298,7 @@ def test_decode_passes_ordered_histories_and_profile_once():
     assert len(provider.calls) == 1
     method, arguments = provider.calls[0]
     assert method == "estimate_profiled_decode_forward_ms"
-    assert arguments["history_lengths"] == (127, 1025, 4097, 8191)
+    assert arguments["history_lengths"] == (128, 1026, 4098, 8192)
     assert arguments["execution_profile"].to_dict() == _DECODE_PROFILE
     assert "attn_kernel_impl" not in arguments
     metrics = predictor.get_metrics()["infercast"]
@@ -306,6 +306,21 @@ def test_decode_passes_ordered_histories_and_profile_once():
     assert metrics["decode_execution_profile"] == _DECODE_PROFILE
     assert metrics["runtime"]["attn_kernel_impl"] == "cuda_graph"
     assert metrics["runtime"]["decode_attn_kernel_impl"] == "cuda_graph"
+
+
+def test_prepared_decode_round_trips_visible_lengths_into_sdk():
+    from sglang_simulator.simulation.sglang.scheduler import build_predictor_batch
+
+    native_batch = SimpleNamespace(
+        forward_mode=SimpleNamespace(name="DECODE"),
+        reqs=[object()] * 4,
+        seq_lens_cpu=[1, 64, 128, 3],
+    )
+    prepared = build_predictor_batch(native_batch)
+    assert [request.past_kv_length for request in prepared.reqs] == [0, 63, 127, 2]
+    provider = _Provider()
+    _predictor(provider).predict_infer_time(prepared)
+    assert provider.calls[0][1]["history_lengths"] == (1, 64, 128, 3)
 
 
 def test_portable_vectors_preserve_mode_order_and_lengths():
@@ -564,7 +579,7 @@ def test_real_sdk_decode_profile_is_independent_of_context(canonical_predictor):
     assert len(provider.calls) == 1
     method, arguments = provider.calls[0]
     assert method == "estimate_profiled_decode_forward_ms"
-    assert arguments["history_lengths"] == (513, 511)
+    assert arguments["history_lengths"] == (514, 512)
     assert arguments["execution_profile"] == eager
     assert "attn_kernel_impl" not in arguments
     metrics = predictor.get_metrics()["infercast"]

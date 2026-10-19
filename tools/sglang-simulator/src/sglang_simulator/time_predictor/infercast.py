@@ -67,10 +67,10 @@ def _validate_batch(batch: ScheduleBatch) -> str:
                 extend_length=extend,
                 past_kv_length=prefix,
             )
-        if mode == "DECODE" and (extend != 1 or prefix < 1):
+        if mode == "DECODE" and extend != 1:
             raise _error(
                 "invalid_batch",
-                "decode requires extend length 1 and positive visible history",
+                "decode requires extend length 1",
                 request_index=index,
                 extend_length=extend,
                 past_kv_length=prefix,
@@ -421,7 +421,10 @@ class InferCastTimePredictor(InferTimePredictor):
             if mode == "DECODE":
                 latency_ms = self._provider.estimate_profiled_decode_forward_ms(
                     history_lengths=tuple(
-                        request.past_kv_length for request in batch.reqs
+                        # The prepared predictor contract excludes the current
+                        # token; InferCast's decode batch contains visible KV.
+                        request.past_kv_length + 1
+                        for request in batch.reqs
                     ),
                     execution_profile=self._decode_execution_profile,
                     **self._runtime,
