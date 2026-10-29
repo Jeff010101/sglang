@@ -3415,8 +3415,34 @@ def parse_lscpu_topology():
     return cpu_info
 
 
+_ORIGINAL_PARSE_LSCPU_TOPOLOGY = parse_lscpu_topology
+_ORIGINAL_LSCPU_CHECK_OUTPUT = subprocess.check_output
+
+
+@lru_cache(maxsize=1)
+def _simulator_cpu_topology(pid, online_cpus):
+    # Cache immutable hardware facts, never memory availability or affinity.
+    # PID prevents a fork from inheriting another process's initialization.
+    return tuple(parse_lscpu_topology())
+
+
+def _physical_cpu_topology():
+    if (
+        os.getenv("SGLANG_SIMULATOR_BOOTSTRAP") != "1"
+        or os.getenv("SGLANG_USE_CPU_ENGINE") != "1"
+        or parse_lscpu_topology is not _ORIGINAL_PARSE_LSCPU_TOPOLOGY
+        or subprocess.check_output is not _ORIGINAL_LSCPU_CHECK_OUTPUT
+    ):
+        return parse_lscpu_topology()
+    try:
+        online_cpus = Path("/sys/devices/system/cpu/online").read_text()
+    except OSError:
+        return parse_lscpu_topology()
+    return _simulator_cpu_topology(os.getpid(), online_cpus)
+
+
 def get_physical_cpus_by_numa():
-    cpu_info = parse_lscpu_topology()
+    cpu_info = _physical_cpu_topology()
 
     # Map NUMA node -> set of (core_id, socket) to avoid duplicates
     # 0: {(0,0): 0, (1, 0): 1,...}
