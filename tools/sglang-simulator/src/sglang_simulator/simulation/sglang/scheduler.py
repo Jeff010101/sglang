@@ -1,4 +1,3 @@
-import gzip
 import heapq
 import importlib
 import json
@@ -49,6 +48,7 @@ from sglang_simulator.time_predictor.base import (
     ScheduleRequest,
 )
 from sglang_simulator.utils import get_logger
+from sglang_simulator.utils.evidence import open_evidence_jsonl
 from sglang_simulator.utils.json import CustomJsonEncoder
 
 logger = get_logger("sgl_simulator")
@@ -442,7 +442,11 @@ class C_SchedulerHook(BaseHook):
     INFERENCE_PREDICTOR: InferTimePredictor = None
     COORDINATOR = None
 
-    ITERATION_STATS: ClassVar[IterationStats] = IterationStats(Envs.output_dir)
+    ITERATION_STATS: ClassVar[IterationStats] = IterationStats(
+        Envs.output_dir,
+        compression="zstd" if Envs.evidence_compression() == "zstd" else "zlib",
+        metrics_only=Envs.evidence_level() == "metrics",
+    )
     TOTAL_PREDICTOR_TIME_COST = 0
     CURRENT_PREDICTOR_TIME_COST = 0
     CURRENT_PREDICTED_LATENCY = 0
@@ -1158,26 +1162,37 @@ class C_SchedulerHook(BaseHook):
                 memory_budget = ConfigManager.get_memory_budget_metrics()
                 if memory_budget is not None:
                     metrics["memory_budget"] = memory_budget
+                if (
+                    Envs.evidence_level() == "full"
+                    and Envs.evidence_compression() == "zstd"
+                ):
+                    metrics["iteration_spool_compression"] = "zstd"
+                if Envs.evidence_level() == "metrics":
+                    metrics["iteration_evidence"] = {
+                        "retention_policy": "metrics",
+                        "persisted": False,
+                        "omitted_by_policy": True,
+                    }
 
                 try:
                     with open(f"{output_dir}/metrics.json", "w") as f:
                         f.write(json.dumps(metrics, cls=CustomJsonEncoder) + "\n")
 
-                    with (
-                        gzip.open(
-                            f"{output_dir}/iteration.jsonl.gz",
-                            "wt",
-                            encoding="utf-8",
-                            compresslevel=1,
-                        )
-                        if Envs.evidence_compression() == "gzip"
-                        else open(f"{output_dir}/iteration.jsonl", "w")
-                    ) as f:
-                        if isinstance(C_SchedulerHook.ITERATION_STATS, IterationStats):
-                            C_SchedulerHook.ITERATION_STATS.write_jsonl(f)
-                        else:
-                            for item in C_SchedulerHook.ITERATION_STATS:
-                                f.write(json.dumps(item) + "\n")
+                    if Envs.evidence_level() == "full":
+                        compression = Envs.evidence_compression()
+                        suffix = {"none": "", "gzip": ".gz", "zstd": ".zst"}[
+                            compression
+                        ]
+                        with open_evidence_jsonl(
+                            f"{output_dir}/iteration.jsonl{suffix}", compression
+                        ) as f:
+                            if isinstance(
+                                C_SchedulerHook.ITERATION_STATS, IterationStats
+                            ):
+                                C_SchedulerHook.ITERATION_STATS.write_jsonl(f)
+                            else:
+                                for item in C_SchedulerHook.ITERATION_STATS:
+                                    f.write(json.dumps(item) + "\n")
 
                     with open(f"{output_dir}/request.jsonl", "w") as f:
                         for item in stats:

@@ -195,6 +195,55 @@ def test_compressed_evidence_preserves_original_rows_and_digest(
 
 
 @pytest.mark.parametrize("mode", ["EXTEND", "DECODE"])
+def test_zstd_evaluated_frames_preserve_costs_full_rows_and_digest(
+    public_adapter, leaves, mode, tmp_path
+):
+    zstd = pytest.importorskip("zstandard")
+    adapter, _, _ = public_adapter
+    step = step_for(adapter, mode)
+    plain = tmp_path / "original.jsonl"
+    zipped = tmp_path / "original.jsonl.zst"
+    producers = [
+        SimOpusNativeCostAdapter(adapter.model, adapter.assets, cost_evidence_path=p)
+        for p in [plain, zipped]
+    ]
+    results = [p.predict_step(step) for p in producers]
+    for p in producers:
+        p.close()
+    assert results[0] == results[1]
+    with zipped.open("rb") as source:
+        with zstd.ZstdDecompressor().stream_reader(source) as stream:
+            assert stream.read() == plain.read_bytes()
+    evidence = producers[1].get_cost_metrics()["evaluated_evidence"]
+    assert evidence["compression"] == "zstd"
+    assert evidence["digest_scope"] == "uncompressed_jsonl"
+    assert evidence["sha256"] == hashlib.sha256(plain.read_bytes()).hexdigest()
+
+
+@pytest.mark.parametrize("mode", ["EXTEND", "DECODE"])
+def test_metrics_policy_omits_cost_file_without_changing_results_or_evidence_ids(
+    public_adapter, leaves, mode, tmp_path, monkeypatch
+):
+    adapter, _, _ = public_adapter
+    step = step_for(adapter, mode)
+    full = SimOpusNativeCostAdapter(adapter.model, adapter.assets)
+    expected = full.predict_step(step)
+    monkeypatch.setenv("SGLANG_SIMULATOR_EVIDENCE_LEVEL", "metrics")
+    path = tmp_path / "omitted.jsonl.zst"
+    small = SimOpusNativeCostAdapter(
+        adapter.model, adapter.assets, cost_evidence_path=path
+    )
+    assert small.predict_step(step) == expected
+    assert small.evaluated_evidence_for(step) == full.evaluated_evidence_for(step)
+    evidence = small.get_cost_metrics()["evaluated_evidence"]
+    assert evidence["omitted_by_policy"] is True
+    assert evidence["persisted"] is False and evidence["path"] is None
+    assert evidence["sha256"] == full.get_cost_metrics()["evaluated_evidence"]["sha256"]
+    small.close()
+    assert not path.exists()
+
+
+@pytest.mark.parametrize("mode", ["EXTEND", "DECODE"])
 def test_public_nine_stages_keep_ordered_work_and_full_evidence(
     public_adapter, leaves, mode
 ):

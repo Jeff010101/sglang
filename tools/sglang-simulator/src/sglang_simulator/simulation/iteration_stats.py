@@ -7,6 +7,8 @@ import tempfile
 import zlib
 from pathlib import Path
 
+from sglang_simulator.utils.evidence import ZstdCodec
+
 
 class IterationStats:
     """Disk-backed JSON rows with small, ordered summaries for metric reduction.
@@ -17,8 +19,15 @@ class IterationStats:
     Export preserves the existing ``json.dumps(row) + "\n"`` representation.
     """
 
-    def __init__(self, output_directory):
+    def __init__(self, output_directory, *, compression="zlib", metrics_only=False):
+        if compression not in {"zlib", "zstd"}:
+            raise ValueError("iteration spool compression must be zlib or zstd")
         self._output_directory = output_directory
+        self.compression = compression
+        self.metrics_only = metrics_only
+        self._codec = (
+            ZstdCodec() if compression == "zstd" and not metrics_only else None
+        )
         self._stream = None
         self.path = None
         self._offsets = []
@@ -32,8 +41,24 @@ class IterationStats:
         if self._failed:
             raise RuntimeError("iteration evidence spool previously failed")
         try:
+            if self.metrics_only:
+                self._metrics.append(
+                    {
+                        key: row.get(key, 0)
+                        for key in (
+                            "forward_latency",
+                            "l2_load_latency",
+                            "cpu_overhead",
+                        )
+                    }
+                )
+                return
             raw = (json.dumps(row) + "\n").encode("utf-8")
-            data = zlib.compress(raw, level=1)
+            data = (
+                self._codec.compress(raw)
+                if self._codec is not None
+                else zlib.compress(raw, level=1)
+            )
             if self._stream is None:
                 directory = Path(self._output_directory())
                 directory.mkdir(parents=True, exist_ok=True)
@@ -61,6 +86,8 @@ class IterationStats:
         return self._metrics
 
     def _read(self, index):
+        if self.metrics_only:
+            raise RuntimeError("verbose iteration evidence disabled by metrics policy")
         if self._failed:
             raise RuntimeError("iteration evidence spool previously failed")
         self._stream.seek(self._offsets[index])
@@ -71,7 +98,12 @@ class IterationStats:
         data = self._stream.read(size)
         if len(data) != size:
             raise OSError("truncated iteration evidence spool record")
-        return zlib.decompress(data).decode("utf-8")
+        raw = (
+            self._codec.decompress(data)
+            if self._codec is not None
+            else zlib.decompress(data)
+        )
+        return raw.decode("utf-8")
 
     def __getitem__(self, index):
         return json.loads(self._read(index))
@@ -82,6 +114,8 @@ class IterationStats:
 
     def write_jsonl(self, destination):
         """Stream complete original rows; retain the spool if export fails."""
+        if self.metrics_only:
+            raise RuntimeError("verbose iteration evidence disabled by metrics policy")
         if self._failed:
             raise RuntimeError("iteration evidence spool previously failed")
         for index in range(len(self)):

@@ -80,7 +80,11 @@ def test_compressed_profile_export_preserves_jsonl(tmp_path, monkeypatch):
     monkeypatch.setenv("SGLANG_SIMULATOR_EVIDENCE_COMPRESSION", "gzip")
     assert Envs.evidence_compression() == "gzip"
     with gzip.open(
-        tmp_path / "iteration.jsonl.gz", "wt", encoding="utf-8", compresslevel=1
+        tmp_path / "iteration.jsonl.gz",
+        "wt",
+        encoding="utf-8",
+        compresslevel=1,
+        newline="\n",
     ) as output:
         store.write_jsonl(output)
     assert (
