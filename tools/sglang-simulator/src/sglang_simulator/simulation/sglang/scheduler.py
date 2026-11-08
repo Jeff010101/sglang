@@ -144,8 +144,6 @@ def _request_prefix_len(req):
     return _host_int(value)
 
 
-
-
 def build_predictor_batch(batch) -> SimulationScheduleBatch:
     """Copy prepared SGLang forward metadata into the predictor contract."""
     mode = getattr(getattr(batch, "forward_mode", None), "name", None)
@@ -1191,7 +1189,6 @@ class C_SchedulerHook(BaseHook):
                         "persisted": False,
                         "omitted_by_policy": True,
                     }
-
 
                 try:
                     with open(f"{output_dir}/metrics.json", "w") as f:

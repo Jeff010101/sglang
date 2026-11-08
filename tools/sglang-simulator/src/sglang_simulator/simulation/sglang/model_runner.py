@@ -1,8 +1,7 @@
 import functools
+import json
 import os
 from contextvars import ContextVar
-
-import json
 
 import torch
 from sglang_simulator.hook import BaseHook

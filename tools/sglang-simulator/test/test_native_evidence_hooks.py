@@ -1,9 +1,9 @@
 """Evidence export controls on the independent native scheduler fixture."""
 
 import pytest
+from sglang_simulator.simulation.sglang import scheduler
 from test_native_scheduler_hooks import hooked_scheduler as hooked_scheduler
 from test_native_scheduler_hooks import mock_profile_output
-from sglang_simulator.simulation.sglang import scheduler
 
 
 @pytest.mark.parametrize(
