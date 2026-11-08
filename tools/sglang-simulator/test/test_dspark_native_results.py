@@ -253,12 +253,12 @@ scheduler.chunked_reqs = []
 scheduler.increment_scheduler_iterations = noop
 scheduler.running_reqs = KeyedReqList(ListKind.DECODING)
 scheduler.prefill_launched_reqs = KeyedReqList(ListKind.PREFILL_LAUNCHED)
-scheduler.invariant_checker = NS(maybe_check_request_lists=noop, maybe_check_batch_consistency=noop)
+scheduler.invariant_checker = NS(run=noop)
 scheduler.deferred_responses = NS(stream_released=noop)
 for name, value in dict(
     enable_overlap=True, is_generation=True, spec_algorithm=algo,
     running_batch=ScheduleBatch(reqs=[], device='cpu'), last_batch=None,
-    gracefully_exit=False, _engine_paused=False, _sched_idled=False,
+    gracefully_exit=False, pause_state=NS(paused=False), _sched_idled=False,
     scheduler_stage_metrics=None, forward_ct=0, processed_tokens_counter=0,
     scripted_scheduler_hook=None, forward_sleep_time=None,
     disaggregation_mode=DisaggregationMode.NULL, enable_unified_memory=False,
@@ -305,7 +305,7 @@ scheduler._record_step_counters = noop
 scheduler.maybe_send_health_check_signal = noop
 scheduler.batch_result_processor = SchedulerBatchResultProcessor(
     is_generation=True, disaggregation_mode=DisaggregationMode.NULL,
-    enable_overlap=True, enable_overlap_mlx=False, model_config=model,
+    model_config=model,
     token_to_kv_pool_allocator=allocator, tree_cache=cache,
     hisparse_coordinator=None, req_to_token_pool=pool, decode_offload_manager=None,
     kv_weight_version_tracker=None,
@@ -314,7 +314,8 @@ scheduler.batch_result_processor = SchedulerBatchResultProcessor(
     metrics_collector=None, metrics_reporter=metrics, draft_worker=worker,
     model_worker=worker, logprob_result_processor=None,
     output_streamer=NS(stream_output=noop), beam_coordinator=scheduler.beam_coordinator,
-    abort_request=noop)
+    abort_request=noop, still_in_batch=scheduler.still_in_batch,
+    leave_prefill_launched=scheduler.prefill_launched_reqs.leave)
 
 # Only initial admission and resource/telemetry boundaries are fixtures. Native
 # selection, decode preparation, overlap decision, launch and processing remain.
