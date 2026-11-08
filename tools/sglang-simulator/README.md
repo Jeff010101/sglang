@@ -577,3 +577,12 @@ The AgentX reference output-token throughput counts output from successful
 profiling requests over their observed earliest-start/latest-end span. It uses a
 different output cohort and denominator; report it separately from fixed-window
 committed throughput.
+
+### Explicit CPU bootstrap
+
+CPU compatibility is active only when both `SGLANG_SIMULATOR_BOOTSTRAP=1`
+and `SGLANG_USE_CPU_ENGINE=1` are set by the simulator worker entry point.
+It keeps native quantization configuration validation, while avoiding physical
+accelerator discovery and import-time AITER loading for dummy model execution.
+Without both flags, ordinary SGLang CUDA/ROCm behavior is unchanged. The actual
+Quark quantization call still loads and delegates to AITER when invoked.
