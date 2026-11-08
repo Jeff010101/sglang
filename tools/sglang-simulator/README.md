@@ -671,3 +671,33 @@ stages through the public SimOpus SDK and retains SGLang request/KV ownership.
 This layer includes the explicit SourceGolden351 progress policy and rejects
 unsupported topologies. It does not require the ordinary R1 latency provider
 or automatic SDK KV budgeting.
+
+### Optional SimOpus model-forward provider
+
+Select `predictor.name: "simopus"` to estimate ordinary DeepSeek-R1 forwards
+through the public SimOpus SDK. Install a compatible SDK separately and use the
+[explicit R1 example](examples/sim_configs/simopus_deepseek_r1_mi355x_eager.json)
+with the complete matching systems data, model revision and SDK revision.
+
+The adapter snapshots CPU batch metadata before the runner mutates it, converts
+SDK milliseconds to simulator seconds, and preserves query failures and result
+provenance. Unselected providers do not import SimOpus. This route does not
+require a coordinator or automatic KV budgeting and does not implement native
+speculative stages.
+
+Contract checks run without model execution. The HTTP checks in
+`test/test_simopus_e2e.py` require Linux, SGLang, the real SDK,
+`SIMOPUS_E2E_SYSTEMS_ROOT` and `SIMOPUS_E2E_MODEL_PATH`; missing inputs are reported
+as skipped rather than presented as integration evidence.
+
+### Optional SDK resource budget
+
+`memory_budget.provider: "simopus"` selects a separate structural resource
+estimate for the declared target deployment. It does not select the latency
+predictor: replay, ML or another predictor can use this budget independently.
+The configuration pins the SDK revision, model identity and an explicit policy.
+Unsupported layouts fail rather than falling back to host memory or guessed
+capacity. An explicit `--max-total-tokens` takes precedence and does not load
+the resource SDK. With no `memory_budget`, existing target capacity estimation
+is unchanged. Successful optional budgets are included in `metrics.json` with
+their resource, policy and topology provenance.
