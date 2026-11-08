@@ -79,11 +79,17 @@ def test_qwen_replay_uses_optional_resource_budget(tmp_path, monkeypatch):
                     "temperature": 0,
                     "max_new_tokens": 16,
                     "ignore_eos": True,
+                    "custom_params": {
+                        "simulation": {"total_request": 1, "created_time": 0}
+                    },
                 },
             },
             timeout=120,
         )
         response.raise_for_status()
+        result = response.json()
+        assert result["meta_info"]["completion_tokens"] == 16, result
+        assert result["meta_info"]["finish_reason"]["type"] == "length", result
         requests.post(runner.base_url + "/start_profile", timeout=30).raise_for_status()
         metrics = json.loads((runner.output_dir / "metrics.json").read_text())
         response = requests.get(runner.base_url + "/server_info", timeout=30)
