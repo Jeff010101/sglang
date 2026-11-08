@@ -1177,6 +1177,9 @@ class C_SchedulerHook(BaseHook):
                     )
                 )
                 metrics.update(C_SchedulerHook.INFERENCE_PREDICTOR.get_metrics())
+                memory_budget = ConfigManager.get_memory_budget_metrics()
+                if memory_budget is not None:
+                    metrics["memory_budget"] = memory_budget
                 if (
                     Envs.evidence_level() == "full"
                     and Envs.evidence_compression() == "zstd"
@@ -1189,9 +1192,6 @@ class C_SchedulerHook(BaseHook):
                         "omitted_by_policy": True,
                     }
 
-                memory_budget = ConfigManager.get_memory_budget_metrics()
-                if memory_budget is not None:
-                    metrics["memory_budget"] = memory_budget
 
                 try:
                     with open(f"{output_dir}/metrics.json", "w") as f:

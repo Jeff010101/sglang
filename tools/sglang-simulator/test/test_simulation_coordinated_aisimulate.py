@@ -23,7 +23,7 @@ async def _dependent_chain(base_url, endpoint, delay):
         AsyncCoordinatorClient(endpoint) as client,
     ):
         try:
-            for round_id, rid in enumerate(("sdk-root", "sdk-child")):
+            for round_id, rid in enumerate(("sdk-root", "sdk-leaf")):
                 task = asyncio.create_task(
                     _generate(
                         session,
