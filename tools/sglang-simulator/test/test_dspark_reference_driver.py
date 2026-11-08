@@ -726,6 +726,7 @@ def source_overlap_loop():
     namespace = {
         "deque": deque,
         "envs": NS(SGLANG_ENABLE_STRICT_MEM_CHECK_DURING_BUSY=NS(get=lambda: False)),
+        "CheckPhase": NS(BUSY="busy"),
     }
     exec(compile(module, str(source), "exec"), namespace)  # noqa: S102 - pinned owned source, no external input
     return namespace[method.name]
@@ -744,6 +745,8 @@ def test_original_overlap_loop_preserves_selection_sync_launch_and_fifo_order(sy
     target = NS(
         gracefully_exit=False,
         _engine_paused=False,
+        pause_state=NS(paused=False),
+        invariant_checker=NS(run=lambda *args: None),
         running_batch=None,
         last_batch=None,
         enable_unified_memory=False,
