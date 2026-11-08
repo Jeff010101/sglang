@@ -107,6 +107,17 @@ def test_factory_loads_real_native_assets_and_public_umd(
             model_ref="explicit CPU progress double; not source-law admission",
         ),
     )
+    load_assets = sdk.load_native_region_assets
+    asset_loads = []
+
+    def load_once(*args, **kwargs):
+        if asset_loads:
+            raise FileExistsError("synthetic exclusive initialization receipt exists")
+        assets = load_assets(*args, **kwargs)
+        asset_loads.append(assets)
+        return assets
+
+    monkeypatch.setattr(sdk, "load_native_region_assets", load_once)
     result = SimOpusDSparkTimePredictor(**args)
     assert len(asset_loads) == 1
     costs = result.dspark_runtime.session.cost_model
