@@ -85,6 +85,17 @@ def test_numeric_requires_factory_not_arbitrary_model(public_adapter, monkeypatc
         SimOpusNativeCostAdapter(full.model, full.assets)
 
 
+def test_prepared_numeric_pair_rejects_unrelated_assets(public_adapter, monkeypatch):
+    full, _, _ = public_adapter
+    enable(monkeypatch)
+    with pytest.raises(PredictorError, match="bound to these assets"):
+        SimOpusNativeCostAdapter.from_prepared_sdk(full.model, copy.copy(full.assets))
+    with pytest.raises(PredictorError, match="bound to these assets"):
+        SimOpusNativeCostAdapter.from_prepared_sdk(
+            NS(estimate_prepared_forward_ms=lambda **kwargs: 1.0), full.assets
+        )
+
+
 @pytest.mark.parametrize("detail", ["on", "off"])
 def test_source_and_policy_guards_survive(public_adapter, monkeypatch, detail):
     _, database, options = public_adapter

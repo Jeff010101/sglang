@@ -214,30 +214,24 @@ class SimOpusDSparkTimePredictor(InferTimePredictor):
                 "progress source topology differs",
                 code="unsupported_topology",
             )
+            prepared = sdk.build_umd_static_model(
+                database,
+                model_id,
+                backend="sglang",
+                revision=model_revision,
+                allow_download=False,
+                native_region_assets=assets,
+            )
             if metrics_cpu_detail_enabled():
-                prepared = sdk.build_umd_static_model(
-                    database,
-                    model_id,
-                    backend="sglang",
-                    revision=model_revision,
-                    allow_download=False,
-                    native_region_assets=assets,
-                )
                 costs = SimOpusNativeCostAdapter(
                     prepared, assets, cost_evidence_path=native_cost_evidence_path
                 )
             else:
-                # Use the public factory so the scalar model and assets cannot
-                # be supplied as an unrelated pair by the detail-off caller.
-                costs = SimOpusNativeCostAdapter.from_sdk(
-                    database,
-                    model_id,
-                    execution_profile=capture,
-                    native_segment_profile_id=native_segment_profile_id,
-                    source_binding=native_source_binding,
-                    analytic_model=native_analytic_model,
-                    source_work_policy=native_source_work_policy,
-                    model_revision=model_revision,
+                # Reuse this public-factory pair. Asset loading can have an
+                # exclusive initialization receipt and must happen only once.
+                costs = SimOpusNativeCostAdapter.from_prepared_sdk(
+                    prepared,
+                    assets,
                     cost_evidence_path=native_cost_evidence_path,
                 )
                 _require(

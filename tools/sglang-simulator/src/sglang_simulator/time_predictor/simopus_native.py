@@ -73,14 +73,24 @@ class SimOpusNativeCostAdapter:
             ) from error
         if metrics_cpu_detail_enabled():
             return cls(model, assets, cost_evidence_path=cost_evidence_path)
-        from simopus.sdk import UMDStaticModel
+        return cls.from_prepared_sdk(
+            model, assets, cost_evidence_path=cost_evidence_path
+        )
 
-        if type(model) is not UMDStaticModel or not callable(
-            getattr(model, "estimate_prepared_forward_ms", None)
+    @classmethod
+    def from_prepared_sdk(cls, model, assets, *, cost_evidence_path=None):
+        """Reuse one public-factory model and its exact already-loaded assets."""
+        from simopus.sdk import NativeRegionAssets, UMDStaticModel
+
+        if (
+            type(model) is not UMDStaticModel
+            or type(assets) is not NativeRegionAssets
+            or getattr(model, "_native_region_assets", None) is not assets
+            or not callable(getattr(model, "estimate_prepared_forward_ms", None))
         ):
             raise PredictorError(
                 "provider_initialization_failed",
-                "metrics CPU detail off requires the public prepared numeric SDK",
+                "metrics CPU detail off requires a public model bound to these assets",
             )
         return cls(
             model,
