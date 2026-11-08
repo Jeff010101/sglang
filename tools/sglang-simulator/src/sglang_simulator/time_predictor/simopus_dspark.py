@@ -16,6 +16,7 @@ from sglang_simulator.time_predictor.native_checkpoint import (
     _geometry,
     _require,
 )
+from sglang_simulator.utils.evidence import metrics_cpu_detail_enabled
 
 
 class SimOpusDSparkTimePredictor(InferTimePredictor):
@@ -213,17 +214,36 @@ class SimOpusDSparkTimePredictor(InferTimePredictor):
                 "progress source topology differs",
                 code="unsupported_topology",
             )
-            prepared = sdk.build_umd_static_model(
-                database,
-                model_id,
-                backend="sglang",
-                revision=model_revision,
-                allow_download=False,
-                native_region_assets=assets,
-            )
-            costs = SimOpusNativeCostAdapter(
-                prepared, assets, cost_evidence_path=native_cost_evidence_path
-            )
+            if metrics_cpu_detail_enabled():
+                prepared = sdk.build_umd_static_model(
+                    database,
+                    model_id,
+                    backend="sglang",
+                    revision=model_revision,
+                    allow_download=False,
+                    native_region_assets=assets,
+                )
+                costs = SimOpusNativeCostAdapter(
+                    prepared, assets, cost_evidence_path=native_cost_evidence_path
+                )
+            else:
+                # Use the public factory so the scalar model and assets cannot
+                # be supplied as an unrelated pair by the detail-off caller.
+                costs = SimOpusNativeCostAdapter.from_sdk(
+                    database,
+                    model_id,
+                    execution_profile=capture,
+                    native_segment_profile_id=native_segment_profile_id,
+                    source_binding=native_source_binding,
+                    analytic_model=native_analytic_model,
+                    source_work_policy=native_source_work_policy,
+                    model_revision=model_revision,
+                    cost_evidence_path=native_cost_evidence_path,
+                )
+                _require(
+                    costs.assets.to_dict() == assets.to_dict(),
+                    "numeric cost factory assets differ from progress source assets",
+                )
             self.dspark_runtime = DSparkNativeRuntime(
                 session=DSparkSession(costs, progress),
                 topology=DSparkTopology(config.tp_size, 1, 1),

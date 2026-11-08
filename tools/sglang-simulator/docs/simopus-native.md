@@ -84,6 +84,25 @@ event record links them to the actual committed forward ID. Costs evaluated
 before a later failure are not counted as committed worker events. An optional
 exclusive cost JSONL also preserves those failed-attempt evaluations.
 
+For a new metrics-only run, the explicit combination
+`SGLANG_SIMULATOR_EVIDENCE_LEVEL=metrics` and
+`SGLANG_SIMULATOR_METRICS_CPU_DETAIL=off` also skips construction of discarded
+iteration detail and full evaluated-cost documents. The latter flag defaults to
+`on`; existing full and metrics runs retain their evidence behavior. Setting it
+to `off` with full retention is rejected.
+
+This opt-in uses the public SDK `estimate_prepared_forward_ms` API through the
+verified SDK factory. Prepared source binding, execution-profile, supported-domain
+and leaf-cost guards still run. It changes no cost formula, request, progress
+draw, native reference event or timing conversion. It does not provide the
+structured result's post-hoc evidence-schema validation. Full native cost
+ledgers, query-source classification and cost digests are explicitly unavailable;
+their SHA256 and byte counts are `null`. Phase references use
+`simopus-metrics:<profile>:<forward>:<phase>`, an identity label rather than a cost
+digest. This mode cannot supply a full native-ledger audit or reconstruct the
+omitted records. Functional equivalence controls alone do not grant timing or
+accuracy acceptance, or establish a wall-clock speedup.
+
 CPU controls include real public SDK projection, unequal ordered P/Q, real native
 result/reserve/FutureMap interfaces, result-owned accounting, FIFO and cancelled
 tail drains. Synthetic leaf values exercise software contracts only. Neither
