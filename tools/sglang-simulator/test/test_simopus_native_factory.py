@@ -62,6 +62,7 @@ def test_factory_loads_real_native_assets_and_public_umd(
     import simopus
     import simopus.sdk as sdk
     from sglang_simulator.time_predictor import (
+        dspark_golden_progress,
         simopus_dspark,
     )
 
@@ -92,10 +93,16 @@ def test_factory_loads_real_native_assets_and_public_umd(
         lambda *a, **k: {"scope": "checkpoint binding independently tested"},
     )
     monkeypatch.setattr(simopus_dspark, "_geometry", lambda *a: None)
-    if adapter.native_source_policy.golden_law is None:
-        with pytest.raises(PredictorError, match="golden"):
-            SimOpusDSparkTimePredictor(**args)
-        return
+    # This fixture verifies public factory/cost wiring. Golden-law provenance
+    # is tested separately; no natural source is relabeled as golden evidence.
+    monkeypatch.setattr(
+        dspark_golden_progress,
+        "SourceGoldenDSparkProgress",
+        lambda *a, **k: NS(
+            topology=(args["config"].tp_size, 1, 1),
+            model_ref="explicit CPU progress double; not source-law admission",
+        ),
+    )
     result = SimOpusDSparkTimePredictor(**args)
     assert (
         result.dspark_runtime.session.cost_model.assets.execution_profile_id
