@@ -586,3 +586,7 @@ It keeps native quantization configuration validation, while avoiding physical
 accelerator discovery and import-time AITER loading for dummy model execution.
 Without both flags, ordinary SGLang CUDA/ROCm behavior is unchanged. The actual
 Quark quantization call still loads and delegates to AITER when invoked.
+
+The CPU pool plumbing translates an explicit logical token capacity to the
+native pool byte budget. Its bounded search rejects unreachable layouts rather
+than spinning indefinitely; no SDK resource model is selected by this mapping.
