@@ -338,3 +338,15 @@ Quark quantization call still loads and delegates to AITER when invoked.
 The CPU pool plumbing translates an explicit logical token capacity to the
 native pool byte budget. Its bounded search rejects unreachable layouts rather
 than spinning indefinitely; no SDK resource model is selected by this mapping.
+
+### Optional SDK resource budget
+
+`memory_budget.provider: "simopus"` selects a separate structural resource
+estimate for the declared target deployment. It does not select the latency
+predictor: replay, ML or another predictor can use this budget independently.
+The configuration pins the SDK revision, model identity and an explicit policy.
+Unsupported layouts fail rather than falling back to host memory or guessed
+capacity. An explicit `--max-total-tokens` takes precedence and does not load
+the resource SDK. With no `memory_budget`, existing target capacity estimation
+is unchanged. Successful optional budgets are included in `metrics.json` with
+their resource, policy and topology provenance.
