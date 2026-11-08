@@ -96,6 +96,7 @@ jobs:
           python3 -m pytest -q tools/sglang-simulator/test/test_simulation_sglang_runner.py
           python3 -m pytest -q tools/sglang-simulator/test/test_cpu_bootstrap.py tools/sglang-simulator/test/test_cpu_optional_imports.py
           python3 -m pytest -q tools/sglang-simulator/test/test_cpu_pool_capacity.py
+          python3 -m pytest -q tools/sglang-simulator/test/test_cpu_allocator_compat.py
           python3 -m pytest -q tools/sglang-simulator/test/test_simulation_packed_geometry.py tools/sglang-simulator/test/test_simulation_packed_payload.py
 
           python3 -m pytest -q tools/sglang-simulator/test/test_resource_budget.py tools/sglang-simulator/test/test_resource_budget_hooks.py
