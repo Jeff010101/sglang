@@ -689,3 +689,15 @@ Contract checks run without model execution. The HTTP checks in
 `test/test_simopus_e2e.py` require Linux, SGLang, the real SDK,
 `SIMOPUS_E2E_SYSTEMS_ROOT` and `SIMOPUS_E2E_MODEL_PATH`; missing inputs are reported
 as skipped rather than presented as integration evidence.
+
+### Optional SDK resource budget
+
+`memory_budget.provider: "simopus"` selects a separate structural resource
+estimate for the declared target deployment. It does not select the latency
+predictor: replay, ML or another predictor can use this budget independently.
+The configuration pins the SDK revision, model identity and an explicit policy.
+Unsupported layouts fail rather than falling back to host memory or guessed
+capacity. An explicit `--max-total-tokens` takes precedence and does not load
+the resource SDK. With no `memory_budget`, existing target capacity estimation
+is unchanged. Successful optional budgets are included in `metrics.json` with
+their resource, policy and topology provenance.

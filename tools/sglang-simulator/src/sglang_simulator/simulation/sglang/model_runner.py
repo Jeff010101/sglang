@@ -2,6 +2,8 @@ import functools
 import os
 from contextvars import ContextVar
 
+import json
+
 import torch
 from sglang_simulator.hook import BaseHook
 from sglang_simulator.simulation.manager import ConfigManager
@@ -137,6 +139,56 @@ def _native_pool_budget(configurator, target_tokens, page_size, *, require_exact
     if require_exact and resolved_tokens(upper) != target_tokens:
         raise ValueError("Native KV pool cannot represent the exact SimOpus capacity")
     return upper
+
+
+def _validate_resource_pool(configurator):
+    """Limit the optional budget to native layouts represented by the SDK."""
+    args = configurator.server_args
+    unsupported = [
+        name
+        for name in (
+            "speculative_algorithm",
+            "enable_hisparse",
+            "enable_unified_memory",
+            "enable_kv_cache_sharding",
+            "enable_lora",
+        )
+        if getattr(args, name, None)
+    ]
+    kv_dtype = getattr(configurator, "kv_cache_dtype_str", None)
+    if kv_dtype not in (
+        None,
+        "auto",
+        "bf16",
+        "bfloat16",
+        "fp16",
+        "float16",
+        "fp32",
+        "float32",
+        "fp8",
+        "fp8_e4m3",
+        "fp8_e5m2",
+    ):
+        unsupported.append(f"packed KV dtype {kv_dtype!r}")
+    if (
+        getattr(configurator, "is_draft_worker", False)
+        or getattr(configurator, "mambaish_config", None) is not None
+        or getattr(configurator, "is_hybrid_swa", False)
+        or getattr(configurator, "sliding_window_size", None) not in (None, -1, 0)
+    ):
+        unsupported.append("nonstandard KV layout")
+    overrides = getattr(args, "json_model_override_args", "{}")
+    if json.loads(overrides or "{}"):
+        unsupported.append("json_model_override_args")
+    model_config = configurator.model_config
+    quant_config = getattr(model_config.hf_text_config, "quantization_config", None)
+    declared_quant = quant_config.get("quant_method") if quant_config else None
+    if getattr(model_config, "quantization", None) != declared_quant:
+        unsupported.append("runtime quantization override")
+    if unsupported:
+        raise ValueError(
+            "SimOpus memory budget does not model: " + ", ".join(unsupported)
+        )
 
 
 class C_ModelRunnerHook(BaseHook):
@@ -296,17 +348,17 @@ class C_KVCacheConfiguratorHook(BaseHook):
                 current_platform.is_cpu = original_is_cpu
 
         def override_profile_available_bytes(self, pre_model_load_memory):
+            ConfigManager.set_memory_budget_metrics(None)
             if self.server_args.max_total_tokens is not None:
                 from sglang.srt.model_executor.pool_configurator import (
                     create_memory_pool_configurator,
                 )
 
-                configurator = create_memory_pool_configurator(self)
-                target_tokens = self.server_args.max_total_tokens
-
-                page_size = _resolve_kv_page_size(self)
-
-                return _native_pool_budget(configurator, target_tokens, page_size)
+                return _native_pool_budget(
+                    create_memory_pool_configurator(self),
+                    self.server_args.max_total_tokens,
+                    _resolve_kv_page_size(self),
+                )
 
             model = ConfigManager.get_model_info()
             if model is None:
@@ -322,6 +374,37 @@ class C_KVCacheConfiguratorHook(BaseHook):
                     "Simulator model, accelerator, and scheduler configuration "
                     "must be resolved before KV-cache pool sizing."
                 )
+
+            budget_config = ConfigManager.get_memory_budget_config()
+            if budget_config is not None:
+                from sglang_simulator.simulation.resource_budget import (
+                    estimate_simopus_budget,
+                )
+
+                from sglang.srt.model_executor.pool_configurator import (
+                    create_memory_pool_configurator,
+                )
+
+                _validate_resource_pool(self)
+                target_config = ConfigManager.get_target_scheduler_config(
+                    scheduler_config
+                )
+                target_config.page_size = _resolve_kv_page_size(self)
+                if target_config.kv_bytes_per_token_per_gpu is not None:
+                    raise ValueError(
+                        "SimOpus memory budget does not accept KV byte overrides"
+                    )
+                max_tokens, metrics = estimate_simopus_budget(
+                    model, hardware, target_config, budget_config
+                )
+                native_bytes = _native_pool_budget(
+                    create_memory_pool_configurator(self),
+                    max_tokens,
+                    target_config.page_size,
+                    require_exact=True,
+                )
+                ConfigManager.set_memory_budget_metrics(metrics)
+                return native_bytes
 
             available_bytes = profile_device_available_bytes(
                 model=model,
