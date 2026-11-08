@@ -13,7 +13,7 @@ def _native_page_counter():
     except ImportError as error:
         if error.name != "sglang.srt.mem_cache.utils":
             raise
-        from sglang.srt.mem_cache.common import get_num_new_pages
+        from sglang.srt.utils import get_num_new_pages
 
     return get_num_new_pages
 

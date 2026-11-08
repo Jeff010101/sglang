@@ -35,9 +35,9 @@ def test_installed_counter_identity_and_cached_import(monkeypatch, legacy):
     original = builtins.__import__
 
     def load(name, *args, **kwargs):
-        if name.startswith("sglang.srt.mem_cache."):
+        if name in ("sglang.srt.mem_cache.utils", "sglang.srt.utils"):
             calls.append(name)
-            if name.endswith("utils") and legacy:
+            if name == "sglang.srt.mem_cache.utils" and legacy:
                 raise legacy(name, name=name)
             return SimpleNamespace(get_num_new_pages=selected)
         return original(name, *args, **kwargs)
@@ -49,7 +49,7 @@ def test_installed_counter_identity_and_cached_import(monkeypatch, legacy):
     assert loader() is selected
     assert tuple(calls) == observed
     assert calls == ["sglang.srt.mem_cache.utils"] + (
-        ["sglang.srt.mem_cache.common"] if legacy else []
+        ["sglang.srt.utils"] if legacy else []
     )
 
 
@@ -60,7 +60,7 @@ def test_dependency_import_failure_is_not_replaced(monkeypatch):
     def load(name, *args, **kwargs):
         if name == "sglang.srt.mem_cache.utils":
             raise cause
-        if name == "sglang.srt.mem_cache.common":
+        if name == "sglang.srt.utils":
             pytest.fail("must not replace a broken dependency with another module")
         return original(name, *args, **kwargs)
 
