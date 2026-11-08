@@ -83,7 +83,6 @@ class PredictorError(RuntimeError):
         self.details = details
 
 
-
 class InferTimePredictor(ABC):
     def __init__(
         self,
@@ -108,4 +107,4 @@ class InferTimePredictor(ABC):
 
     def reset_metrics(self) -> None:
         """Reset predictor-specific metrics after a profile flush."""
-        return None
+        return
