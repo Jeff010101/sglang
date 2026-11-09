@@ -1,5 +1,6 @@
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 from typing import Optional
 
@@ -23,6 +24,7 @@ class ConfigManager:
     _platform_config: Optional[PlatformConfig] = None
     _scheduler_config: Optional[SchedulerConfig] = None
     _raw_config: Optional[dict] = None
+    _memory_budget_metrics: dict | None = None
 
     @classmethod
     def _get_raw_config(cls) -> dict:
@@ -67,6 +69,19 @@ class ConfigManager:
         cls._model_info = None
         cls._platform_config = None
         cls._scheduler_config = None
+        cls._memory_budget_metrics = None
+
+    @classmethod
+    def get_memory_budget_config(cls):
+        return cls._get_raw_config().get("memory_budget")
+
+    @classmethod
+    def set_memory_budget_metrics(cls, metrics: dict | None):
+        cls._memory_budget_metrics = metrics
+
+    @classmethod
+    def get_memory_budget_metrics(cls):
+        return cls._memory_budget_metrics
 
     @classmethod
     def set_model_info(cls, model: ModelInfo):
@@ -126,6 +141,17 @@ class ConfigManager:
 
     @classmethod
     def set_scheduler_config(cls, config: SchedulerConfig):
+        cls._apply_scheduler_overrides(config)
+        cls._scheduler_config = config
+
+    @classmethod
+    def get_target_scheduler_config(cls, config: SchedulerConfig) -> SchedulerConfig:
+        target = replace(config)
+        cls._apply_scheduler_overrides(target)
+        return target
+
+    @classmethod
+    def _apply_scheduler_overrides(cls, config: SchedulerConfig):
         # The configuration from the external config file has higher priority.
         external_config = cls._get_raw_config().get("scheduler", {})
         for field_name in [
@@ -151,8 +177,6 @@ class ConfigManager:
             field_value = external_config.get(field_name)
             if field_value is not None:
                 setattr(config, field_name, DataType(field_value))
-
-        cls._scheduler_config = config
 
     @classmethod
     def get_kv_cache_bytes(cls) -> int:
@@ -328,7 +352,61 @@ class ConfigManager:
                     **options,
                 )
 
-            raise ValueError("native SimOpus provider requires DeepSeek-V4.1-Flash")
+            from sglang_simulator.time_predictor.simopus import (
+                SimOpusTimePredictor,
+            )
+
+            obsolete_fields = sorted(
+                {"contract_version", "reduction_policy"} & predictor_config.keys()
+            )
+            if obsolete_fields:
+                raise ValueError(
+                    "obsolete SimOpus predictor configuration fields: "
+                    + ", ".join(obsolete_fields)
+                )
+
+            supported_fields = {
+                "name",
+                "model_id",
+                "systems_root",
+                "database_mode",
+                "attn_kernel_impl",
+                "decode_attn_kernel_impl",
+                "attn_dtype",
+                "kv_cache_dtype",
+                "model_revision",
+                "provider_revision",
+                "execution_profile",
+                "decode_execution_profile",
+            }
+            unknown_fields = sorted(predictor_config.keys() - supported_fields)
+            if unknown_fields:
+                raise ValueError(
+                    "unknown SimOpus predictor configuration fields: "
+                    + ", ".join(unknown_fields)
+                )
+
+            return SimOpusTimePredictor(
+                model,
+                hw=hw,
+                config=sched_config,
+                model_id=predictor_config.get("model_id"),
+                system=config.get("platform", {}).get("accelerator", {}).get("name"),
+                systems_root=cls.resolve_simopus_path(
+                    predictor_config.get("systems_root")
+                ),
+                database_mode=predictor_config.get("database_mode", "SILICON"),
+                attn_kernel_impl=predictor_config.get("attn_kernel_impl"),
+                decode_attn_kernel_impl=predictor_config.get("decode_attn_kernel_impl"),
+                attn_dtype=predictor_config.get("attn_dtype"),
+                kv_cache_dtype=predictor_config.get("kv_cache_dtype"),
+                model_revision=predictor_config.get("model_revision"),
+                provider_revision=predictor_config.get("provider_revision"),
+                execution_profile=predictor_config.get("execution_profile"),
+                decode_execution_profile=predictor_config.get(
+                    "decode_execution_profile"
+                ),
+            )
         else:
             name = predictor_config.get("name")
             if name == "aiconfigurator":
