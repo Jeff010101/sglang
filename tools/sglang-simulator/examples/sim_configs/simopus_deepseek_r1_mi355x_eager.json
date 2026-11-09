@@ -48,17 +48,6 @@
       "profile_id": "4b2f52f2a2775a7d277732a5a6d9b446644b620702ed7917bcd540767c7e0317"
     }
   },
-  "memory_budget": {
-    "provider": "simopus",
-    "provider_revision": "<full SimOpus commit>",
-    "model_id": "deepseek-ai/DeepSeek-R1",
-    "model_revision": "56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad",
-    "policy": {
-      "schema_version": 1,
-      "mem_fraction_static": 0.8,
-      "runtime_reserve_bytes": 2147483648
-    }
-  },
   "scheduler": {
     "tp_size": 8,
     "ep_size": 2,
