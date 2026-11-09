@@ -96,8 +96,12 @@ jobs:
           python3 -m pytest -q tools/sglang-simulator/test/test_simulation_sglang_runner.py
           python3 -m pytest -q tools/sglang-simulator/test/test_cpu_bootstrap.py tools/sglang-simulator/test/test_cpu_optional_imports.py
           python3 -m pytest -q tools/sglang-simulator/test/test_cpu_pool_bounds.py
+          python3 -m pytest -q tools/sglang-simulator/test/test_cpu_pool_capacity.py
           python3 -m pytest -q tools/sglang-simulator/test/test_cpu_allocator_compat.py
           python3 -m pytest -q tools/sglang-simulator/test/test_simulation_packed_geometry.py tools/sglang-simulator/test/test_simulation_packed_payload.py
+
+          python3 -m pytest -q tools/sglang-simulator/test/test_resource_budget.py tools/sglang-simulator/test/test_resource_budget_hooks.py
+          python3 -m pytest -q tools/sglang-simulator/test/test_resource_budget_http.py
           python3 -m pytest -q tools/sglang-simulator/test/test_simulation_sglang_serving.py
           python3 -m pytest -q tools/sglang-simulator/test/test_simulation_cache_hit_ratio.py
           python3 -m pytest -q tools/sglang-simulator/test/test_simulation_offline_blocking.py
@@ -131,3 +135,6 @@ jobs:
             tools/sglang-simulator/test/test_native_*.py \
             tools/sglang-simulator/test/test_simopus_native_factory.py \
             tools/sglang-simulator/test/test_metrics_cpu_detail.py
+
+          python3 -m pytest -q tools/sglang-simulator/test/test_simopus_sdk.py tools/sglang-simulator/test/test_simopus_predictor.py tools/sglang-simulator/test/test_predictor_contract.py tools/sglang-simulator/test/test_prepared_batch.py tools/sglang-simulator/test/test_scheduler_predictor_hooks.py
+          python3 -m pytest -q tools/sglang-simulator/test/test_simopus_e2e.py
