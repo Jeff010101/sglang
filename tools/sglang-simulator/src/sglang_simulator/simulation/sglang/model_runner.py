@@ -35,6 +35,48 @@ def _resolve_kv_page_size(configurator):
     )
 
 
+def _native_pool_budget(configurator, target_tokens, page_size, *, require_exact=False):
+    """Translate logical capacity to the CPU runner's native pool byte budget."""
+    if require_exact and (
+        type(page_size) is not int
+        or page_size <= 0
+        or type(target_tokens) is not int
+        or target_tokens < 2
+        or target_tokens % page_size
+    ):
+        raise ValueError("SimOpus KV capacity must be >=2 and page-aligned")
+
+    def resolved_tokens(budget_bytes):
+        try:
+            config = configurator.calculate_pool_sizes(budget_bytes, page_size)
+        except RuntimeError as error:
+            if require_exact and "Not enough memory" not in str(error):
+                raise
+            return 0
+        except ValueError as error:
+            if "cannot hold even one request" not in str(error):
+                raise
+            return 0
+        return config.max_total_num_tokens
+
+    lower, upper = 0, 1
+    for _ in range(64):
+        if resolved_tokens(upper) >= target_tokens:
+            break
+        lower, upper = upper, upper * 2
+    else:
+        raise ValueError("Native KV pool cannot represent the requested capacity")
+    while lower + 1 < upper:
+        middle = (lower + upper) // 2
+        if resolved_tokens(middle) < target_tokens:
+            lower = middle
+        else:
+            upper = middle
+    if require_exact and resolved_tokens(upper) != target_tokens:
+        raise ValueError("Native KV pool cannot represent the exact SimOpus capacity")
+    return upper
+
+
 class C_ModelRunnerHook(BaseHook):
     HOOK_CLASS_NAME = "ModelRunner"
     HOOK_MODULE_NAME = "sglang.srt.model_executor.model_runner"
@@ -167,30 +209,7 @@ class C_KVCacheConfiguratorHook(BaseHook):
 
                 page_size = _resolve_kv_page_size(self)
 
-                def resolved_tokens(budget_bytes):
-                    try:
-                        config = configurator.calculate_pool_sizes(
-                            budget_bytes, page_size
-                        )
-                    except RuntimeError:
-                        return 0
-                    except ValueError as error:
-                        # New runtimes reject deliberately undersized SWA probes.
-                        if "cannot hold even one request" not in str(error):
-                            raise
-                        return 0
-                    return config.max_total_num_tokens
-
-                lower, upper = 0, 1
-                while resolved_tokens(upper) < target_tokens:
-                    lower, upper = upper, upper * 2
-                while lower + 1 < upper:
-                    middle = (lower + upper) // 2
-                    if resolved_tokens(middle) < target_tokens:
-                        lower = middle
-                    else:
-                        upper = middle
-                return upper
+                return _native_pool_budget(configurator, target_tokens, page_size)
 
             model = ConfigManager.get_model_info()
             if model is None:
