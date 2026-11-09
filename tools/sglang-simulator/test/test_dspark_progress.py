@@ -2,9 +2,9 @@
 
 import hashlib
 import json
-from dataclasses import replace
 
 import pytest
+from msgspec.structs import replace
 from sglang_simulator.time_predictor.base import PredictorError
 from sglang_simulator.time_predictor.dspark_progress import (
     DEFINITION,

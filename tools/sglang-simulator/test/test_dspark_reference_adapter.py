@@ -1,8 +1,7 @@
 """Explicit reference events only; CPU fixtures are not source qualification."""
 
-from dataclasses import FrozenInstanceError, replace
-
 import pytest
+from msgspec.structs import replace
 from sglang_simulator.simulation.sglang.dspark_reference import DSparkReferenceLedger
 from sglang_simulator.simulation.sglang.dspark_reference_adapter import (
     DSparkReferenceAdapter,
@@ -345,7 +344,7 @@ def test_bridge_cost_failure_and_stale_owner_cannot_consume_or_replace_the_base(
         transaction.complete(prediction, current_ledger=replace(base))
     completed = transaction.complete(prediction, current_ledger=base)
     assert tuple(result.step.forward_id for result in completed.pending) == (1,)
-    with pytest.raises(FrozenInstanceError):
+    with pytest.raises(AttributeError):
         transaction.process_previous_before = True
 
 

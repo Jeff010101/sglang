@@ -11,10 +11,10 @@ from __future__ import annotations
 import json
 import math
 import time
-from dataclasses import dataclass
 from functools import lru_cache
 from typing import Protocol
 
+import msgspec
 from sglang_simulator.time_predictor.base import PredictorError
 
 STEP_ATTRIBUTE = "_sglang_simulator_dspark_step"
@@ -77,8 +77,7 @@ def _canonical_budget(value, label):
     return _read_canonical_budget(value, label)
 
 
-@dataclass(frozen=True)
-class DSparkTopology:
+class DSparkTopology(msgspec.Struct, frozen=True):
     tp_size: int
     attention_dp_size: int
     pp_size: int = 1
@@ -100,8 +99,7 @@ class DSparkTopology:
         return self.tp_size // self.attention_dp_size
 
 
-@dataclass(frozen=True)
-class DSparkRequest:
+class DSparkRequest(msgspec.Struct, frozen=True):
     rid: str
     target_prefix_len: int
     extend_len: int
@@ -157,8 +155,7 @@ class DSparkRequest:
         return min(window_size, self.draft_history_tokens)
 
 
-@dataclass(frozen=True)
-class DSparkGroup:
+class DSparkGroup(msgspec.Struct, frozen=True):
     attention_dp_rank: int
     forward_mode: str
     requests: tuple[DSparkRequest, ...]
@@ -178,8 +175,7 @@ class DSparkGroup:
         _canonical_budget(self.execution_json, "execution_json")
 
 
-@dataclass(frozen=True)
-class DSparkStep:
+class DSparkStep(msgspec.Struct, frozen=True):
     forward_id: int
     topology: DSparkTopology
     # All attention-DP groups, in rank order, including idle participants.
@@ -220,8 +216,7 @@ class DSparkStep:
         return tuple(phases)
 
 
-@dataclass(frozen=True)
-class DSparkPhaseCost:
+class DSparkPhaseCost(msgspec.Struct, frozen=True):
     phase: str
     seconds: float
     # The adapter must attribute every cost to exact SDK/PerfDB provenance.
@@ -240,8 +235,7 @@ class DSparkPhaseCost:
             _fail("DSPark cost requires positive time and provenance")
 
 
-@dataclass(frozen=True)
-class DSparkStepTiming:
+class DSparkStepTiming(msgspec.Struct, frozen=True):
     forward_id: int
     # Sequential worker boundaries. Each cost is already coordinated over TP/DP;
     # the simulator must never multiply it by ranks or use max(sum(rank costs)).
@@ -290,8 +284,7 @@ class DSparkStepTiming:
         return math.fsum(cost.seconds for cost in self.phases)
 
 
-@dataclass(frozen=True)
-class DSparkProgress:
+class DSparkProgress(msgspec.Struct, frozen=True):
     forward_id: int
     # Ordered native (request ID, commit count), never current measured counts.
     # The native scheduler owns visible output/finish clipping. A verify commit
@@ -332,8 +325,7 @@ class DSparkProgressModel(Protocol):
     def predict_progress(self, step: DSparkStep) -> DSparkProgress: ...
 
 
-@dataclass(frozen=True)
-class DSparkStepResult:
+class DSparkStepResult(msgspec.Struct, frozen=True):
     step: DSparkStep
     timing: DSparkStepTiming
     progress: DSparkProgress
@@ -367,8 +359,7 @@ class DSparkStepResult:
         return self.step.groups[self.local_attention_dp_rank]
 
 
-@dataclass(frozen=True)
-class CommittedHistory:
+class CommittedHistory(msgspec.Struct, frozen=True):
     target_prefix_len: int
     draft_valid_from: int
     draft_valid_to: int

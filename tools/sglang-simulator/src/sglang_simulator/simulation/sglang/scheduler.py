@@ -4,10 +4,11 @@ import json
 import os
 import time
 from copy import deepcopy
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from functools import partial, wraps
 from typing import Any, ClassVar
 
+import msgspec
 from sglang_simulator.compat import validate_simulator_server_args
 from sglang_simulator.hook import (
     BaseHook,
@@ -68,8 +69,7 @@ _DSPARK_ACCOUNTING_OWNER = "_sglang_simulator_dspark_accounting_owner"
 _DSPARK_PENDING_RESULTS = "_sglang_simulator_dspark_pending_results"
 
 
-@dataclass(frozen=True)
-class _DSparkResultAccounting:
+class _DSparkResultAccounting(msgspec.Struct, frozen=True):
     owner: object
     prediction: DSparkStepResult
     forward_duration: float
@@ -945,9 +945,9 @@ class C_SchedulerHook(BaseHook):
                     "native_worker_event": {
                         "forward_id": prediction.step.forward_id,
                         "event_committed": True,
-                        "step": asdict(prediction.step),
-                        "timing": asdict(prediction.timing),
-                        "progress": asdict(prediction.progress),
+                        "step": msgspec.to_builtins(prediction.step),
+                        "timing": msgspec.to_builtins(prediction.timing),
+                        "progress": msgspec.to_builtins(prediction.progress),
                         "evaluated_costs": [
                             json.loads(row) for row in accounting.evaluated_costs
                         ],

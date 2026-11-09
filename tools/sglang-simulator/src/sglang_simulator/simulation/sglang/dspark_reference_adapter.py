@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, replace
 
+import msgspec
+from msgspec.structs import replace
 from sglang_simulator.simulation.sglang.dspark import DSparkStep, DSparkStepResult
 from sglang_simulator.simulation.sglang.dspark_reference import (
     DSparkReferenceLedger,
@@ -14,14 +15,13 @@ from sglang_simulator.simulation.sglang.dspark_reference import (
 from sglang_simulator.time_predictor.base import PredictorError
 
 
-@dataclass(frozen=True)
-class DSparkReferenceAdapter:
+class DSparkReferenceAdapter(msgspec.Struct, frozen=True):
     """Consume source-owned events, deferring retirement until ownership drains.
 
     The source event driver supplies native selection and settlement order.
     """
 
-    ledger: DSparkReferenceLedger = field(default_factory=DSparkReferenceLedger)
+    ledger: DSparkReferenceLedger = msgspec.field(default_factory=DSparkReferenceLedger)
     retiring_request_ids: tuple[str, ...] = ()
 
     def __post_init__(self):
@@ -134,8 +134,7 @@ def _previous_plan(ledger, process_previous_before, skipped_previous_ids):
     return None if previous is None else previous.step.forward_id
 
 
-@dataclass(frozen=True)
-class ReferenceStepTransaction:
+class ReferenceStepTransaction(msgspec.Struct, frozen=True):
     """A pure candidate; the owner supplies its current ledger at completion."""
 
     base_ledger: DSparkReferenceLedger

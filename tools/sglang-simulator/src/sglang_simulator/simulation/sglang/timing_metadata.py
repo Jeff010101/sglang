@@ -1,6 +1,5 @@
 """Constant-size virtual timing snapshots carried by native response metadata."""
 
-from dataclasses import dataclass
 from functools import wraps
 
 import msgspec
@@ -12,8 +11,7 @@ METADATA_KEY = "sglang_simulator"
 _REQUEST_ATTRIBUTE = "_simulator_timing"
 
 
-@dataclass
-class TimingMetadataOutput:
+class TimingMetadataOutput(msgspec.Struct):
     """Host auxiliary output, consumed after native visible-token commits."""
 
     clock: Coordinator

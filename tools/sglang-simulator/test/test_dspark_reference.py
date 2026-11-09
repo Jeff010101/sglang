@@ -2,11 +2,11 @@
 
 import importlib.util
 import sys
-from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
 from types import ModuleType
 
 import pytest
+from msgspec.structs import replace
 from sglang_simulator.simulation.sglang import dspark_reference as reference
 from sglang_simulator.simulation.sglang.dspark import DSparkTopology
 from sglang_simulator.simulation.sglang.dspark_reference import (
@@ -521,7 +521,7 @@ def test_seed_metadata_is_strict_and_immutable(change):
     with pytest.raises(PredictorError, match="metadata is inconsistent"):
         replace(row, **change)
     assert row.kv is row
-    with pytest.raises(FrozenInstanceError):
+    with pytest.raises(AttributeError):
         row.kv_committed_len = 246
 
 
@@ -548,7 +548,7 @@ def test_prepared_vectors_cannot_hide_mutability_or_boolean_coordinates():
         with pytest.raises(PredictorError, match="immutable ordered CPU metadata"):
             replace(prepared, **changes)
     assert type(prepared) is PreparedReferenceBatch
-    with pytest.raises(FrozenInstanceError):
+    with pytest.raises(AttributeError):
         prepared.seed_seq_lens_cpu = (246,)
 
 

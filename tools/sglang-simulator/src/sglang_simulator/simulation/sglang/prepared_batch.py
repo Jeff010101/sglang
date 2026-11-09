@@ -1,7 +1,6 @@
 """Immutable CPU metadata from one native model forward."""
 
-from dataclasses import dataclass
-
+import msgspec
 from sglang_simulator.time_predictor.base import (
     PredictorError,
     ScheduleBatch,
@@ -48,8 +47,7 @@ def _cpu_lengths(batch, field, batch_size):
     return tuple(_cpu_int(value, field=field) for value in values)
 
 
-@dataclass(frozen=True)
-class PreparedBatchSnapshot:
+class PreparedBatchSnapshot(msgspec.Struct, frozen=True):
     forward_mode: str
     seq_lens_cpu: tuple[int, ...]
     extend_seq_lens_cpu: tuple[int, ...] | None = None

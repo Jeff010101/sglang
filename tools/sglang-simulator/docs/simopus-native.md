@@ -78,6 +78,10 @@ does not relax native calls outside the two explicit simulator bootstrap flags.
 
 ## Evidence and verification
 
+Simulator records use `msgspec>=0.21.0`, so replacing a record reruns its
+post-construction invariants. SDK-owned records keep their SDK representation.
+This changes internal containers, not native query or evidence field identities.
+
 `simopus` metrics label the native staged contract and progress identity.
 `iteration.jsonl` retains each committed native event with its exact step,
 per-stage source references, progress provenance and immutable full evaluated

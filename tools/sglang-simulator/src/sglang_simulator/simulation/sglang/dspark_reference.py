@@ -7,8 +7,8 @@ choose reference batch membership or establish source/profile compatibility.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-
+import msgspec
+from msgspec.structs import replace
 from sglang_simulator.simulation.sglang.dspark import DSparkStep, DSparkStepResult
 from sglang_simulator.time_predictor.base import PredictorError
 
@@ -40,8 +40,7 @@ def _decode_alloc_lens(reqs, *, reserve, page_size):
     return page_aligned_decode_alloc_lens(reqs, reserve=reserve, page_size=page_size)
 
 
-@dataclass(frozen=True)
-class ReferenceRequestKV:
+class ReferenceRequestKV(msgspec.Struct, frozen=True):
     rid: str
     kv_committed_len: int
     kv_allocated_len: int
@@ -76,8 +75,7 @@ class ReferenceRequestKV:
         return self
 
 
-@dataclass(frozen=True)
-class ReferenceCPUView:
+class ReferenceCPUView(msgspec.Struct, frozen=True):
     seq_lens_cpu: tuple[int, ...] | None
     nxt_kv_lens_cpu: tuple[int, ...] | None
     local_attention_dp_rank: int = 0
@@ -122,8 +120,7 @@ class ReferenceCPUView:
         )
 
 
-@dataclass(frozen=True)
-class PreparedReferenceBatch:
+class PreparedReferenceBatch(msgspec.Struct, frozen=True):
     step: DSparkStep
     seed_seq_lens_cpu: tuple[int, ...]
     nxt_kv_lens_cpu: tuple[int, ...] | None
@@ -202,8 +199,7 @@ class PreparedReferenceBatch:
         )
 
 
-@dataclass(frozen=True)
-class DSparkReferenceLedger:
+class DSparkReferenceLedger(msgspec.Struct, frozen=True):
     """Stage explicit native-order events using previously modeled outcomes.
 
     Preparation precedes optional synchronization/settlement. Current publication

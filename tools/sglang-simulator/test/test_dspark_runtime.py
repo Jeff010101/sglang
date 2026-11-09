@@ -431,7 +431,6 @@ def source_fact_batch():
 
 
 def test_optional_simulator_source_facts_freeze_order_without_mutating_native_state():
-    from dataclasses import FrozenInstanceError
 
     native_batch = source_fact_batch()
     second = source_fact_batch().reqs[0]
@@ -469,9 +468,9 @@ def test_optional_simulator_source_facts_freeze_order_without_mutating_native_st
     assert facts.requests[0].rid == "a" and facts.requests[0].origin_input_len == 2
     assert facts.requests[1].max_new_tokens == 200
     assert facts.seq_lens_cpu == (512, 128) and facts.nxt_kv_lens_cpu == (768, 256)
-    with pytest.raises(FrozenInstanceError):
+    with pytest.raises(AttributeError):
         facts.requests[0].origin_input_len = 9
-    with pytest.raises(FrozenInstanceError):
+    with pytest.raises(AttributeError):
         facts.seq_lens_cpu = (900, 128)
 
 

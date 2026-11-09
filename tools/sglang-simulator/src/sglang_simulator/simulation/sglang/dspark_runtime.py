@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import time
 from array import array
-from dataclasses import dataclass, field, replace
 
+import msgspec
+from msgspec.structs import replace
 from sglang_simulator.simulation.sglang.dspark import (
     STEP_ATTRIBUTE,
     DSparkGroup,
@@ -48,8 +49,7 @@ def cpu_vector(values, size, name):
     return tuple(cpu_int(value, name) for value in values)
 
 
-@dataclass(frozen=True)
-class DSparkSimulatorRequestFacts:
+class DSparkSimulatorRequestFacts(msgspec.Struct, frozen=True):
     rid: str
     origin_input_len: int
     max_new_tokens: int
@@ -58,8 +58,7 @@ class DSparkSimulatorRequestFacts:
     multimodal_inputs_present: bool
 
 
-@dataclass(frozen=True)
-class DSparkSimulatorSourceFacts:
+class DSparkSimulatorSourceFacts(msgspec.Struct, frozen=True):
     """CPU simulator observations, not reference mirror policy or query inputs."""
 
     forward_mode: str
@@ -67,7 +66,17 @@ class DSparkSimulatorSourceFacts:
     seq_lens_cpu: tuple[int, ...] | None
     draft_input_present: bool
     nxt_kv_lens_cpu: tuple[int, ...] | None
-    observation_scope: str = field(default="simulator_cpu_before_worker_v1", init=False)
+
+    @property
+    def observation_scope(self):
+        return "simulator_cpu_before_worker_v1"
+
+    def to_dict(self):
+        """Project the original observed fields, with the non-input scope last."""
+        return {
+            **msgspec.to_builtins(self),
+            "observation_scope": self.observation_scope,
+        }
 
 
 def capture_simulator_source_facts(native_batch):

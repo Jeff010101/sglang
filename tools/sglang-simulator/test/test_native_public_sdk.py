@@ -5,11 +5,11 @@ import gzip
 import hashlib
 import json
 import os
-from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace as NS
 
 import pytest
+from msgspec.structs import replace
 from sglang_simulator.simulation.sglang.dspark import (
     CommittedHistory,
     DSparkGroup,

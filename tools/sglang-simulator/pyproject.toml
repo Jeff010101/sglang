@@ -7,7 +7,7 @@ name = "sglang-simulator"
 dynamic = ["version"]
 description = "A simulation benchmark tool for sglang"
 dependencies = [
-    "msgspec",
+    "msgspec>=0.21.0",
     "pyzmq",
     "numpy",
     "scikit-learn",

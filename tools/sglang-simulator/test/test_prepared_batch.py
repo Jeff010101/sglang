@@ -1,6 +1,5 @@
 """Prepared metadata is copied from CPU mirrors and scoped to one result."""
 
-from dataclasses import FrozenInstanceError
 from types import SimpleNamespace
 
 import pytest
@@ -38,7 +37,7 @@ def test_snapshot_keeps_raw_lengths_order_and_independent_predictor_batches():
     assert first.request_info() == [[1, 100], [8, 0], [2, 64]]
     first.reqs[0].past_kv_length = 999
     assert snapshot.predictor_batch().request_info() == [[1, 100], [8, 0], [2, 64]]
-    with pytest.raises(FrozenInstanceError):
+    with pytest.raises(AttributeError):
         snapshot.seq_lens_cpu = (1, 1, 1)
 
 

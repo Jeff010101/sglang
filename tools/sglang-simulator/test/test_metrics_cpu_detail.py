@@ -3,10 +3,10 @@
 import copy
 import io
 import json
-from dataclasses import replace
 from types import SimpleNamespace as NS
 
 import pytest
+from msgspec.structs import replace
 from sglang_simulator.simulation.iteration_stats import (
     IterationStats,
     append_iteration_metrics_or_detail,

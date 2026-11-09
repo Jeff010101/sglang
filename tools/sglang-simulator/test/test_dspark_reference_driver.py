@@ -4,11 +4,11 @@ import ast
 import asyncio
 import json
 from collections import deque
-from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace as NS
 
 import pytest
+from msgspec.structs import replace
 from sglang_simulator.compat import (
     apply_simulator_server_args,
     validate_simulator_server_args,

@@ -2,10 +2,10 @@
 
 import json
 import sys
-from dataclasses import replace
 from types import ModuleType
 
 import pytest
+from msgspec.structs import replace
 from sglang_simulator.simulation.sglang.dspark import (
     CommittedHistory,
     DSparkGroup,

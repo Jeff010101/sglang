@@ -1,10 +1,10 @@
 """Native scheduler ownership controls without the ordinary forward provider."""
 
 import importlib
-from dataclasses import FrozenInstanceError, replace
 from types import SimpleNamespace
 
 import pytest
+from msgspec.structs import replace
 from sglang_simulator.simulation.manager.state import StateManager
 from sglang_simulator.simulation.sglang import scheduler
 from sglang_simulator.simulation.types import SimulationMode
@@ -418,7 +418,7 @@ def test_dspark_processing_uses_each_result_and_excludes_each_launch_wall_once(
     assert test.hook.TOTAL_PREDICTOR_TIME_COST == pytest.approx(1.0)
     assert not hasattr(test.predictor, "last_batch")
     assert getattr(result0, scheduler._DSPARK_ACCOUNTING).prediction is first
-    with pytest.raises(FrozenInstanceError):
+    with pytest.raises(AttributeError):
         getattr(result0, scheduler._DSPARK_ACCOUNTING).forward_duration = 5
 
 

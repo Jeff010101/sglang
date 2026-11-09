@@ -5,8 +5,8 @@ native scheduler selects/prepares, decides synchronization, publishes through
 FutureMap, and processes results. This owner freezes those events for the SDK.
 """
 
-from dataclasses import dataclass, replace
-
+import msgspec
+from msgspec.structs import replace
 from sglang_simulator.simulation.sglang.dspark import dspark_result_from_native
 from sglang_simulator.simulation.sglang.dspark_reference import _require
 from sglang_simulator.simulation.sglang.dspark_reference_adapter import (
@@ -17,8 +17,7 @@ from sglang_simulator.simulation.sglang.dspark_runtime import cpu_int, cpu_vecto
 from sglang_simulator.time_predictor.base import PredictorError
 
 
-@dataclass
-class _Selection:
+class _Selection(msgspec.Struct):
     batch: object
     base: DSparkReferenceAdapter
     allocation: object

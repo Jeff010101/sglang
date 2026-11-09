@@ -1,9 +1,9 @@
 """Conditional input validation and sampling; CPU fixtures are not native evidence."""
 
 import hashlib
-from dataclasses import replace
 
 import pytest
+from msgspec.structs import replace
 from sglang_simulator.time_predictor.base import PredictorError
 from sglang_simulator.time_predictor.dspark_given_mean_progress import (
     GivenMeanDSparkProgress,

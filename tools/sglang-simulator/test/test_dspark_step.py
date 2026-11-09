@@ -1,9 +1,9 @@
 """CPU contracts only. Fixture timings/progress are not performance evidence."""
 
-from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
+from msgspec.structs import replace
 from sglang_simulator.simulation.sglang.dspark import (
     STEP_ATTRIBUTE,
     CommittedHistory,

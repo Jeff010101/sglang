@@ -66,7 +66,7 @@ def test_native_result_next_input_and_cpu_reserve_use_native_sglang_types():
     run_python(
         """
 from types import SimpleNamespace as NS
-from dataclasses import replace
+from msgspec.structs import replace
 from unittest.mock import patch
 import torch
 from sglang_simulator.simulation.sglang.hook_bootstrap import install_simulator_hooks
