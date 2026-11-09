@@ -648,8 +648,10 @@ CPU compatibility is active only when both `SGLANG_SIMULATOR_BOOTSTRAP=1`
 and `SGLANG_USE_CPU_ENGINE=1` are set by the simulator worker entry point.
 It keeps native quantization configuration validation, while avoiding physical
 accelerator discovery and import-time AITER loading for dummy model execution.
-Without both flags, ordinary SGLang CUDA/ROCm behavior is unchanged. The actual
-Quark quantization call still loads and delegates to AITER when invoked.
+Without both flags, the CPU bootstrap wrappers remain inactive. The separate
+Quark change defers its optional AITER import until the quantization call in all
+execution modes; that call keeps its original arguments, result and dependency
+error. This changes import timing without replacing the quantizer.
 
 The CPU pool plumbing translates an explicit logical token capacity to the
 native pool byte budget. Its bounded search rejects unreachable layouts rather
