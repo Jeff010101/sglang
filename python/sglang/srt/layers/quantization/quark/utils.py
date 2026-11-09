@@ -3,6 +3,7 @@
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from functools import lru_cache
 from types import MappingProxyType
 from typing import Any, Optional
 
@@ -130,15 +131,22 @@ def _is_equal_or_regex_match(
     return False
 
 
-# utility for tensor dims > 2 cases
-def b_dynamic_mxfp4_quant(x):
-    # Model configuration imports these helpers without executing a GPU kernel.
+@lru_cache(maxsize=1)
+def _get_dynamic_mxfp4_quant():
+    """Resolve the optional quantizer once without importing it at module load."""
     try:
         from aiter.ops.triton.quant import dynamic_mxfp4_quant
     except ImportError as error:
         raise ImportError(
             "Failed to import aiter. Make sure AITER is installed and accessible."
         ) from error
+
+    return dynamic_mxfp4_quant
+
+
+# utility for tensor dims > 2 cases
+def b_dynamic_mxfp4_quant(x):
+    dynamic_mxfp4_quant = _get_dynamic_mxfp4_quant()
 
     h, b, d = x.shape
     x, x_scales = dynamic_mxfp4_quant(x.reshape(-1, d))

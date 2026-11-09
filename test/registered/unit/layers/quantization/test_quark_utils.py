@@ -125,7 +125,7 @@ class TestOptionalAiterImport(CustomTestCase):
                 "-S",
                 "-c",
                 """
-import importlib.abc, runpy, sys
+import builtins, importlib.abc, runpy, sys
 from types import ModuleType, SimpleNamespace
 
 torch = ModuleType('torch')
@@ -182,10 +182,28 @@ for name in ('aiter', 'aiter.ops', 'aiter.ops.triton', 'aiter.ops.triton.quant')
     module.__path__ = []
     sys.modules[name] = module
 sys.modules['aiter.ops.triton.quant'].dynamic_mxfp4_quant = quantize
-assert namespace['b_dynamic_mxfp4_quant'](Input()) == (
-    ('packed', (2, 3, 32)), ('scales', (2, 3, 2)))
+imports = []
+original_import = builtins.__import__
+
+def observe_import(name, *args, **kwargs):
+    if name == 'aiter.ops.triton.quant':
+        imports.append(name)
+    return original_import(name, *args, **kwargs)
+
+def unexpected_quantizer(value):
+    raise AssertionError('a successful quantizer binding must remain cached')
+
+builtins.__import__ = observe_import
+try:
+    expected = (('packed', (2, 3, 32)), ('scales', (2, 3, 2)))
+    assert namespace['b_dynamic_mxfp4_quant'](Input()) == expected
+    sys.modules['aiter.ops.triton.quant'].dynamic_mxfp4_quant = unexpected_quantizer
+    assert namespace['b_dynamic_mxfp4_quant'](Input()) == expected
+finally:
+    builtins.__import__ = original_import
+assert imports == ['aiter.ops.triton.quant']
 assert events == [('reshape', (-1, 64)), ('quantize',),
-                  ('packed', (2, 3, 32)), ('scales', (2, 3, 2))]
+                  ('packed', (2, 3, 32)), ('scales', (2, 3, 2))] * 2
 """,
                 str(source),
             ],
